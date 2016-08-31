@@ -1,0 +1,35 @@
+
+
+mail:
+  build: .
+
+  volumes:
+
+  # Standard volumes for mail data persistance and launch script:
+  - ./livedata/var-spool-postfix/:/var/spool/postfix/:rw
+  - ./resources/launch.py:/launch.py:ro
+
+  # Let's encrypt SSL certificates dir (optional):
+  #- ../letsencrypt/ssl/:/ssl-letsencrypt/:ro
+
+  environment:
+
+  # All e-mail hosts you want to receive e-mail for:
+  - EMAIL_HOSTS=mymaindomain.com,myotherdomain.co.uk
+
+  # The main e-mail domain used for sending:
+  - MAILNAME=mymaindomain.com
+
+  # Folder with let's encrypt SSL certs to be used for the TLS (optional):
+  #- CERT_DIR=/ssl-letsencrypt/mymaindomain.com/
+
+  # List of e-mail accounts and where they are to be forwarded:
+  - MAIL_FORWARDS=contact@mymaindomain.com=mypersonalemail@external-provider.example.com
+
+  # SMTP LOGIN for all users (generated through MAIL_FORWARD list):
+  - SMTP_LOGIN=contact=soMeRanDoMpAsSwoRd
+
+  ports:
+  - "587:587"
+  - "25:25"
+
