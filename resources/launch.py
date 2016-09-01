@@ -2,17 +2,34 @@
 
 import os
 import shutil
+import signal
 import subprocess
 import time
 
-def first_time_setup():
+def setup():
+    print ("[launch.py] *** SETUP STARTED... ***",
+        flush=True)
+
+    print ("[launch.py] Stopping postfix and syslog...",
+        flush=True)
+
     os.system("service postfix stop")
     os.system("service syslog-ng stop")
 
+    print ("[launch.py] Adding postfix and sasl users...",
+        flush=True)
+
     subprocess.check_output(["adduser", "postfix", "sasl"])
+
+    print ("[launch.py] Calling dpkg-reconfigure for postfix...",
+        flush=True)
+
 
     os.system("bash -c \"DEBIAN_FRONTEND=noninteractive " +\
         "dpkg-reconfigure postfix\"")
+
+    print ("[launch.py] Editing configs for settings...",
+        flush=True)
 
     def virtual_domains():
         domains = set([(item.strip()).partition("=")[0].partition("@")[2] \
@@ -84,14 +101,15 @@ def first_time_setup():
         return line
     filter_file("/etc/postfix/main.cf", main_cf_main_mail)
 
-    # Configure TLS:
+    # Configure TLS certs:
     def main_cf_tls(line):
-        if simplify(line).startswith("smtpd_tls_cert_file="):
-            return "smtpd_tls_cert_file=" + os.environ["CERT_DIR"] +\
-                "fullchain.pem"
-        if simplify(line).startswith("smtpd_tls_key_file="):
-            return "smtpd_tls_key_file=" + os.environ["CERT_DIR"] +\
-                "privkey.pem"
+        if "CERT_DIR" in os.environ:
+            if simplify(line).startswith("smtpd_tls_cert_file="):
+                return "smtpd_tls_cert_file=" + os.environ["CERT_DIR"] +\
+                    "fullchain.pem"
+            if simplify(line).startswith("smtpd_tls_key_file="):
+                return "smtpd_tls_key_file=" + os.environ["CERT_DIR"] +\
+                    "privkey.pem"
         if simplify(line).startswith("smtpd_use_tls="):
             return "smtpd_use_tls=yes"
         return line
@@ -101,7 +119,8 @@ def first_time_setup():
     def main_cf_smtp_relaying(line):
         if simplify(line).startswith("smtpd_relay_restrictions="):
             return "smtpd_relay_restrictions=" +\
-                "reject_sender_login_mismatch permit_sasl_authenticated " +\
+                "reject_authenticated_sender_login_mismatch " +\
+                "permit_sasl_authenticated " +\
                 "defer_unauth_destination permit_mynetworks"
         return line
     filter_file("/etc/postfix/main.cf", main_cf_smtp_relaying)
@@ -128,7 +147,7 @@ def first_time_setup():
         alias_map = {}
         for alias in combined_aliases:
             source_part = alias.partition("=")[0]
-            target_part = alias.partition("=")[1]
+            target_part = alias.partition("=")[2]
             if not source_part in alias_map:
                 alias_map[source_part] = set()
             alias_map[source_part].add(target_part)
@@ -198,6 +217,12 @@ def first_time_setup():
         for address in mail_owners:
             f.write(address + " " + ", ".join(mail_owners[address]) + "\n")
 
+    print ("[launch.py] Done editing configs.",
+        flush=True)
+
+    print ("[launch.py] Creating SMTP users....",
+        flush=True)
+
     # Create user(s):
     uid = 1200
     with open("/tmp/smtp-newusers", "w") as f:
@@ -210,7 +235,8 @@ def first_time_setup():
                 raise RuntimeError("invalid user name")
             if pw.find(":") >= 0:
                 raise RuntimeError("colon in SMTP login password not supported")
-            os.mkdir("/home/" + user)
+            if not os.path.exists("/home/" + user): 
+                os.mkdir("/home/" + user)
             line = user + ":" + pw + ":" + str(uid) + ":" +\
                 str(uid) + ":SMTP user:/home/" + user + ":/bin/false"
             f.write(line + "\n")
@@ -221,21 +247,53 @@ def first_time_setup():
     finally:
         os.remove("/tmp/smtp-newusers")
 
-if not os.path.exists("/first-time-setup-done.mark"):
-    with open("/first-time-setup-done.mark", "wb"):
-        pass
-    first_time_setup()
+    print ("[launch.py] Setup complete.",
+        flush=True)
+
+# Prepare signal handlers:
+global_info = {
+    "sigterm_received" : False,
+}
+def handler_sigterm(signum, frame):
+    global global_info
+    global_info["sigterm_received"] = True
+    print("[launch.py] SIGTERM received. Processing...", flush=True)
+signal.signal(signal.SIGTERM, handler_sigterm)
+def check_exit():
+    global global_info
+    if global_info["sigterm_received"]:
+        print("[launch.py] Stopping services... (SIGTERM)", flush=True)
+        os.system("service postfix stop")
+        os.system("service syslog-ng stop")        
+        print("[launch.py] All stopped. Terminating. (SIGTERM)", flush=True)
+        sys.exit(0)
+
+# Update configuration to newest settings:
+setup()
+check_exit()
+
+# Announce that we will now launch everything:
+print ("[launch.py] *** LAUNCH STARTED ***",
+    flush=True)
 
 # Start syslog and wait a bit for it to start:
+print ("[launch.py] Launching syslog...",
+    flush=True)
 os.system("chmod 0775 /var/log")
 subprocess.check_output(["syslog-ng", "--no-caps"])
 time.sleep(5)
+check_exit()
 
 # Start SASL2 auth daemon:
+print ("[launch.py] Launching saslauthd...",
+    flush=True)
 subprocess.check_output(["saslauthd", "-a", "shadow"])
 time.sleep(5)
+check_exit()
 
 # Start postfix:
+print ("[launch.py] Launching postfix...",
+    flush=True)
 if not os.path.exists("/var/spool/postfix/etc/services"):
     if not os.path.exists("/var/spool/postfix/"):
         os.mkdir("/var/spool/postfix")
@@ -246,6 +304,14 @@ subprocess.check_output(["postmap", "/etc/postfix/virtual"])
 subprocess.check_output(["postmap",
     "/etc/postfix/controlled_envelope_senders"])
 os.system("postfix start")
+check_exit()
+
+# Announce launch completion:
+print ("[launch.py] Done. Everything should be running now.",
+        flush=True)
+
+# Endless loop to keep container running:
 while True:
-    time.sleep(1)
+    check_exit()
+    time.sleep(0.5)
 
