@@ -32,12 +32,18 @@ def setup():
         flush=True)
 
     def virtual_domains():
+        """ Domains we receive e-mail for, but which we don't actually accept
+            for local storage (IMAP) but just for forwarding.
+        """
         domains = set([(item.strip()).partition("=")[0].partition("@")[2] \
             for item in os.environ["MAIL_FORWARDS"].split(",")])
         domains.discard("")
         return domains
 
     def actual_domains():
+        """ All domains for which we are the true final destination, that is
+            no e-mail forwarding to external providers.
+        """
         domains = set([item.strip()
             for item in os.environ["EMAIL_HOSTS"].split(",")])
         domains.discard("")
@@ -46,8 +52,14 @@ def setup():
         return domains
 
     def all_domains():
+        """ All domains for which we receive e-mail, no matter if it is
+            handled locally as final destination or forwarded to an external
+            provider.
+        """
         vd = virtual_domains()
         ad = actual_domains()
+        print("DEBUG VD: " + str(vd))
+        print("DEBUG AD: " + str(ad))
         return vd.union(ad)
 
     def filter_file(name, filter_func):
@@ -130,7 +142,7 @@ def setup():
         if simplify(line).startswith("mydestination="):
             return "mydestination=" +\
                 "localhost.localdomain, localhost, " +\
-                ", ".join(actual_domains())
+                ", ".join(all_domains())
         return line
     filter_file("/etc/postfix/main.cf", main_cf_dest)
 
@@ -152,9 +164,17 @@ def setup():
                 alias_map[source_part] = set()
             alias_map[source_part].add(target_part)
 
+        # Write regular aliases:
         for alias_source in alias_map:
             target_line = ",".join(alias_map[alias_source])
             f.write(alias_source + " " + target_line + "\n") 
+
+        # Write catch all:
+        if "CATCH_ALL_TARGET_USER" in os.environ:
+            catch_all = os.environ["CATCH_ALL_TARGET_USER"]
+            for domain in all_domains():
+                f.write("@" + domain + " " + os.environ[
+                    "CATCH_ALL_TARGET_USER"] + "@" + main_mail + "\n")
 
     # Fix syslog config for docker use:
     def fix_syslog(line):

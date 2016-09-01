@@ -24,7 +24,10 @@ mail:
   #- CERT_DIR=/ssl-letsencrypt/mymaindomain.com/
 
   # List of e-mail accounts and where they are to be forwarded:
-  - MAIL_FORWARDS=contact@mymaindomain.com=mypersonalemail@external-provider.example.com
+  - MAIL_FORWARDS=contact@mymaindomain.com=mypersonalemail@external-provider.example.com, contact@mymaindomain2.com=myemail2@other-provider.example.com
+
+  # To which account to send all non-existing catch-all emails:
+  - CATCH_ALL_TARGET_USER=contact
 
   # SMTP LOGIN for all users (generated through MAIL_FORWARD list):
   - SMTP_LOGIN=contact=soMeRanDoMpAsSwoRd
