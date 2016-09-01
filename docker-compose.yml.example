@@ -29,7 +29,7 @@ mail:
   # To which account to send all non-existing catch-all emails:
   - CATCH_ALL_TARGET_USER=contact
 
-  # SMTP LOGIN for all users (generated through MAIL_FORWARD list):
+  # SMTP LOGIN for all users (generated through MAIL_FORWARD list) for sending mail:
   - SMTP_LOGIN=contact=soMeRanDoMpAsSwoRd
 
   ports:
