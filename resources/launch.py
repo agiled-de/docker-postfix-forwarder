@@ -162,6 +162,14 @@ def setup():
         "virtual_alias_domains = " + ", ".join(virtual_domains()) + "\n" +
         "virtual_alias_maps = hash:/etc/postfix/virtual\n")
 
+    # Configure received message sizes to <=300mb:
+    def main_cf_message_size_limit(line):
+        if simplify(line).startswith("mailbox_size_limit") or \
+                simplify(line).startswith("message_size_limit"):
+            return "message_size_limit = 314572800"
+        return line
+    filter_file("/etc/postfix/main.cf", main_cf_message_size_limit)
+
     # Write /etc/postfix/virtual with virtual domain redirects / forwards:
     with open("/etc/postfix/virtual", "w") as f:
         combined_aliases = [item.strip() for item in os.environ[
