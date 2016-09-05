@@ -20,6 +20,9 @@ mail:
   # The main e-mail domain used for sending:
   - MAILNAME=mymaindomain.com
 
+  # Whether to enforce TLS when receiving e-mails from other servers:
+  - ENFORCE_TLS=no
+
   # Folder with let's encrypt SSL certs to be used for the TLS (optional):
   #- CERT_DIR=/ssl-letsencrypt/mymaindomain.com/
 
