@@ -3,28 +3,38 @@
 
 This is a simple SMTP server container which simply handles your choice of
 domains, and then forwards the received e-mail to your choice of targets at
-existing e-mail providers. It will also allow you to send e-mail through it
-with a password, but it will never store received e-mail itself (just
-forward).
+existing e-mail providers.
 
-If you use let's encrypt, you can also mount the let's encrypt certificates
-into the container to be used for your e-mail server to have valid verifiable
-TLS certificates for your SMTP server.
+Features:
+- Easy setup of multiple domains, accounts and mail forwarding (this container
+  is for forwarding on your custom domains only, it doesn't do IMAP!)
+- Optional catch-all for non-existing target accounts where mail is sent to
+- Optional TLS enforcement when receiving e-mails from other servers
+- Simple setup for SMTP accounts to send e-mail through this server with
+  a password
+- Optional support for let's encrypt certificates to be used for the SMTP TLS
+  to have properly signed certificates
 
-As a result, this container is the perfect companion for a well-configured,
-simple e-mail setup to be able to send/receive from custom domains, while
-leaving the IMAP storage to any trusted existing provider which you use
-behind the scenes.
-
-If you want truly independent mail including IMAP, look elsewhere.
-If you just want your custom e-mail address for the outside world, while
-being ok with using an existing e-mail provider behind the scenes for IMAP,
-then you probably found what you are looking for!
+This container is the perfect companion for a well-configured, simple e-mail
+setup to be able to send/receive from custom domains, while leaving the IMAP
+storage to any trusted existing provider which you use behind the scenes.
+(If you want truly independent mail including IMAP, look elsewhere.)
 
 # How does it work?
 
-Adjust the docker-compose.yml with your domains, email names and forwards,
-SMTP login password(s) and optionally let's encrypt certificate directory.
-After doing that, just fire it up with ``` docker-compose up -d``` and you
-should be having working e-mail!
+- Copy docker-compose.yml.example to docker.compose.yml
+
+- Adjust the docker-compose.yml with your domains, email names and forwards,
+  ... (the file contains comments that document all the available options)
+
+- If you want to have proper valid TLS certificates and you're using let's
+  encrypt, you can add the certificate directory as a volume in
+  docker-compose.yml
+
+After doing that, open a terminal, change to the directory where the
+docker-compose.yml is located and launch it with ``` docker-compose up -d```.
+
+To check for possible problems and errors, open a terminal, change to the
+directory where the docker-compose.yml is located and use the command
+``` docker-compose logs```.
 
