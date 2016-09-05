@@ -1,5 +1,5 @@
 
-# Simple auto-forwarding SMTP server with valid let's encrypt TLS cert support
+# Docker Postfix Forwarder Container
 
 This is a simple SMTP server container which simply handles your choice of
 domains, and then forwards the received e-mail to your choice of targets at
