@@ -16,6 +16,14 @@ def setup():
     os.system("service postfix stop")
     os.system("service syslog-ng stop")
 
+    enforce_tls = False
+    if "ENFORCE_TLS" in os.environ:
+        value = os.environ["ENFORCE_TLS"].strip().lower()
+        if value == "yes" or value == "true" or value == "1":
+            enforce_tls = True
+    print ("[launch.py] Mail server will be configured to " +
+        "enforce TLS for incoming mails: " + str (enforce_tls))
+
     print ("[launch.py] Adding postfix and sasl users...",
         flush=True)
 
@@ -90,10 +98,13 @@ def setup():
     def master_cf_tls(line):
         if (simplify(line).startswith("smtp inet") and
                 simplify(line).endswith('smtpd')):
+            enforce_tls_line = "  -o smtpd_enforce_tls=yes\n"
+            if not enforce_tls:
+                enforce_tls_line = ""
             return "smtp inet n - n - - smtpd\n" +\
-                "  -o smtpd_enforce_tls=yes\n" +\
+                enforce_tls_line +\
                 "587 inet n - n - - smtpd\n" +\
-                "  -o smtpd_enforce_tls=yes"
+                enforce_tls_line
         elif not line.startswith("#"):
             # Remove chroot from services:
             parts = simplify(line).split(" ")
