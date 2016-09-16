@@ -1,15 +1,19 @@
 
-# Simple auto-forwarding SMTP server with valid let's encrypt TLS cert support
+# Simple auto-forwarding postfix mail server for docker
 
-This is a simple SMTP server container which simply handles your choice of
-domains, and then forwards the received e-mail to your choice of targets at
-existing e-mail providers. It will also allow you to send e-mail through it
-with a password, but it will never store received e-mail itself (just
-forward).
+*Important:* this project is not affiliated with/endorsed by docker
+whatsoever. Apparently this note is necessary for some legal people at
+docker, don't blame me.
 
-If you use let's encrypt, you can also mount the let's encrypt certificates
-into the container to be used for your e-mail server to have valid verifiable
-TLS certificates for your SMTP server.
+This is a simple SMTP server container which supports:
+
+- receiving e-mails for your choice of domains, and then forwarding it
+  to some behind-the-scenes address of an existing e-mail provider
+
+- sending e-mails directly from this server using an SMTP login
+
+- (optional) using let's encrypt certificates from a docker-mounted volume for
+  signed valid TLS certificates for your mailserver
 
 As a result, this container is the perfect companion for a well-configured,
 simple e-mail setup to be able to send/receive from custom domains, while
