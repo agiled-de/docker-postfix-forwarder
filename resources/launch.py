@@ -4,6 +4,8 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
+import textwrap
 import time
 
 def setup():
@@ -66,8 +68,6 @@ def setup():
         """
         vd = virtual_domains()
         ad = actual_domains()
-        print("DEBUG VD: " + str(vd))
-        print("DEBUG AD: " + str(ad))
         return vd.union(ad)
 
     def filter_file(name, filter_func):
@@ -84,6 +84,23 @@ def setup():
             contents = f.read()
         with open(name, "w") as f:
             f.write(contents + "\n" + line)
+
+    def config_set(key_name, key_value):
+        found_it = True
+        def replace_value(line):
+            nonlocal found_it
+            if found_it:
+                return line
+            if line.lstrip().startswith(key_name):
+                key_name = line.lstrip()[len(key_name):].lstrip()
+                if key_name.startswith("="):
+                    found_it = True
+                    return key_name + "=" + key_value
+            return line
+        if not found_it:
+            append_to_file("/etc/postfix/master.cf",
+                key_name + "=" + key_value)
+        filter_file("/etc/postfix/master.cf", master_cf_tls)
 
     def simplify(line):
         line = line.replace("\t", " ")
@@ -169,6 +186,14 @@ def setup():
             return "message_size_limit = 314572800"
         return line
     filter_file("/etc/postfix/main.cf", main_cf_message_size_limit)
+
+    # Set some TLS security optoins:
+    config_set("smtpd_tls_mandatory_protocols", "!SSLv2,!SSLv3")
+    config_set("smtp_tls_mandatory_protocols", "!SSLv2,!SSLv3")
+    config_set("smtpd_tls_protocols", "!SSLv2,!SSLv3")
+    config_set("smtpd_tls_protocols", "!SSLv2,!SSLv3")
+    config_set("smtpd_tls_exclude_ciphers",
+        "aNULL, eNULL, EXPORT, DES, RC4, MD5, PSK, aECDH, EDH-DSS-DES-CBC3-SHA, EDH-RSA-DES-CDC3-SHA, KRB5-DE5, CBC3-SHA")
 
     # Write /etc/postfix/virtual with virtual domain redirects / forwards:
     with open("/etc/postfix/virtual", "w") as f:
@@ -285,6 +310,51 @@ def setup():
         subprocess.check_output(["newusers", "/tmp/smtp-newusers"])
     finally:
         os.remove("/tmp/smtp-newusers")
+
+    # Check if mailman is supposed to be used:
+    if "ENABLE_MAILMAN" in os.environ and (
+            os.environ["ENABLE_MAILMAN"].lower() == "true" or
+            os.environ["ENABLE_MAILMAN"].lower() == "on" or
+            os.environ["ENABLE_MAILMAN"].lower() == "yes" or
+            os.environ["ENABLE_MAILMAN"].lower() == "1"):
+        print("[launch.py] mailman is ENABLED. Checking mailman presence...",
+            flush=True)
+        # Install mailman if missing:
+        if not os.path.exists("/mailman-venv"):
+            print("[launch.py] mailman missing. INSTALLING...", flush=True)
+
+            # Find python we want to use for mailman:
+            python3_version = "python3"
+            if "extra_mailman_python_version" in os.environ:
+                python3_version = "python" + os.environ[
+                    "extra_mailman_python_version"]
+
+            # Generate venv for use with mailman:
+            print("[launch.py] Generating mailman venv using " +
+                python3_version + "...", flush=True)
+            subprocess.check_output(["bash", "-c",
+                "source /root/.bashrc; " + python3_version + " -m " +
+                "venv /mailman-venv"])  # run as bash for $PATH use
+
+            # Install mailman:
+            script = textwrap.dedent("""\
+            #!/bin/bash
+
+            source /mailman-venv/bin/activate || { echo "Failed to activate mailman venv"; exit 1; }
+            cd /mailman-venv/ || { echo "Failed to enter /mailman-venv"; exit 1; }
+            bzr branch lp:mailman
+            cd ./mailman/
+            echo "Executing setup.py with python binary `whereis $python_bin`..."
+            python setup.py install
+            """)
+            with open("/tmp/mailman-install", "w") as f:
+                f.write(script)
+            result = subprocess.call(["bash", "/tmp/mailman-install"],
+                stderr=subprocess.STDOUT)
+            if result != 0:
+                print("[launch.py] mailman install FAILURE. ABORTING...",
+                    file=sys.stderr, flush=True)
+                sys.exit(1)
 
     print ("[launch.py] Setup complete.",
         flush=True)
