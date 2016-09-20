@@ -1,5 +1,7 @@
 
 FROM ubuntu:16.04
+
+# Uncomment & fill if current mailman requires another python version:
 ENV extra_mailman_python_exact_version="3.4.5"
 ENV extra_mailman_python_version="3.4"
 

@@ -342,10 +342,12 @@ def setup():
 
             source /mailman-venv/bin/activate || { echo "Failed to activate mailman venv"; exit 1; }
             cd /mailman-venv/ || { echo "Failed to enter /mailman-venv"; exit 1; }
-            bzr branch lp:mailman
-            cd ./mailman/
-            echo "Executing setup.py with python binary `whereis $python_bin`..."
-            python setup.py install
+            #bzr branch lp:mailman
+            pip install mailman
+            pip install postorius
+            #cd ./mailman/
+            #echo "Executing setup.py with python binary `whereis $python_bin`..."
+            #python setup.py install
             """)
             with open("/tmp/mailman-install", "w") as f:
                 f.write(script)
