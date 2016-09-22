@@ -19,8 +19,8 @@ def setup():
     os.system("service syslog-ng stop")
 
     enforce_tls = False
-    if "ENFORCE_TLS" in os.environ:
-        value = os.environ["ENFORCE_TLS"].strip().lower()
+    if "POSTFIX_ENFORCE_TLS" in os.environ:
+        value = os.environ["POSTFIX_ENFORCE_TLS"].strip().lower()
         if value == "yes" or value == "true" or value == "1":
             enforce_tls = True
     print ("[launch.py] Mail server will be configured to " +
@@ -46,7 +46,7 @@ def setup():
             for local storage (IMAP) but just for forwarding.
         """
         domains = set([(item.strip()).partition("=")[0].partition("@")[2] \
-            for item in os.environ["MAIL_FORWARDS"].split(",")])
+            for item in os.environ["POSTFIX_MAIL_FORWARDS"].split(",")])
         domains.discard("")
         return domains
 
@@ -55,7 +55,7 @@ def setup():
             no e-mail forwarding to external providers.
         """
         domains = set([item.strip()
-            for item in os.environ["EMAIL_HOSTS"].split(",")])
+            for item in os.environ["POSTFIX_EMAIL_HOSTS"].split(",")])
         domains.discard("")
         for virtual in virtual_domains():
             domains.discard(virtual)
@@ -132,10 +132,11 @@ def setup():
     filter_file("/etc/postfix/master.cf", master_cf_tls)
 
     # Set mail origin and main hostname:
-    main_mail = os.environ["MAILNAME"]
+    main_mail = os.environ["POSTFIX_MAILNAME"]
     def main_cf_main_mail(line):
         if simplify(line).startswith("myhostname="):
-            return "myhostname= " + main_mail + "\n" + "myorigin= " + main_mail
+            return "myhostname= " + main_mail + "\n" + "myorigin= " +\
+                main_mail
         elif simplify(line).startswith("myorigin="):
             return ""
         return line
@@ -143,12 +144,14 @@ def setup():
 
     # Configure TLS certs:
     def main_cf_tls(line):
-        if "CERT_DIR" in os.environ:
+        if "POSTFIX_CERT_DIR" in os.environ:
             if simplify(line).startswith("smtpd_tls_cert_file="):
-                return "smtpd_tls_cert_file=" + os.environ["CERT_DIR"] +\
+                return "smtpd_tls_cert_file=" + os.environ[
+                    "POSTFIX_CERT_DIR"] +\
                     "fullchain.pem"
             if simplify(line).startswith("smtpd_tls_key_file="):
-                return "smtpd_tls_key_file=" + os.environ["CERT_DIR"] +\
+                return "smtpd_tls_key_file=" + os.environ[
+                    "POSTFIX_CERT_DIR"] +\
                     "privkey.pem"
         if simplify(line).startswith("smtpd_use_tls="):
             return "smtpd_use_tls=yes"
@@ -193,12 +196,13 @@ def setup():
     config_set("smtpd_tls_protocols", "!SSLv2,!SSLv3")
     config_set("smtpd_tls_protocols", "!SSLv2,!SSLv3")
     config_set("smtpd_tls_exclude_ciphers",
-        "aNULL, eNULL, EXPORT, DES, RC4, MD5, PSK, aECDH, EDH-DSS-DES-CBC3-SHA, EDH-RSA-DES-CDC3-SHA, KRB5-DE5, CBC3-SHA")
+        "aNULL, eNULL, EXPORT, DES, RC4, MD5, PSK, aECDH, " +
+        "EDH-DSS-DES-CBC3-SHA, EDH-RSA-DES-CDC3-SHA, KRB5-DE5, CBC3-SHA")
 
     # Write /etc/postfix/virtual with virtual domain redirects / forwards:
     with open("/etc/postfix/virtual", "w") as f:
         combined_aliases = [item.strip() for item in os.environ[
-            "MAIL_FORWARDS"].split(",")]
+            "POSTFIX_MAIL_FORWARDS"].split(",")]
         
         alias_map = {}
         for alias in combined_aliases:
@@ -214,11 +218,11 @@ def setup():
             f.write(alias_source + " " + target_line + "\n") 
 
         # Write catch all:
-        if "CATCH_ALL_TARGET_USER" in os.environ:
-            catch_all = os.environ["CATCH_ALL_TARGET_USER"]
+        if "POSTFIX_CATCH_ALL_TARGET_USER" in os.environ:
+            catch_all = os.environ["POSTFIX_CATCH_ALL_TARGET_USER"]
             for domain in all_domains():
                 f.write("@" + domain + " " + os.environ[
-                    "CATCH_ALL_TARGET_USER"] + "@" + main_mail + "\n")
+                    "POSTFIX_CATCH_ALL_TARGET_USER"] + "@" + main_mail + "\n")
 
     # Fix syslog config for docker use:
     def fix_syslog(line):
@@ -248,9 +252,9 @@ def setup():
     with open("/etc/postfix/controlled_envelope_senders", "w") as f:
         # Compute permissions:
         logins = [item.strip() for item in os.environ[
-            "SMTP_LOGIN"].split(",")]
+            "POSTFIX_SMTP_LOGIN"].split(",")]
         forwarded = set([entry.strip().partition("=")[0] for entry in \
-            os.environ["MAIL_FORWARDS"].split(",")])
+            os.environ["POSTFIX_MAIL_FORWARDS"].split(",")])
         forwarded.discard("")
         mail_owners = dict()
 
@@ -259,7 +263,8 @@ def setup():
             user = login.partition("=")[0]
             pw = login.partition("=")[2]
 
-            # Allow this user to own any mails specified in MAIL_FORWARDS:
+            # Allow this user to own any mails specified in
+            # POSTFIX_MAIL_FORWARDS:
             addresses = [user + "@" + domain for domain in all_domains()]
             for address in addresses:
                 if address in forwarded:
@@ -267,14 +272,15 @@ def setup():
                         mail_owners[address] = set()
                     mail_owners[address].add(user)
                     mail_owners[address].add(user + "@" +
-                        os.environ["MAILNAME"])
+                        os.environ["POSTFIX_MAILNAME"])
 
             # Allow this user to own their name on the main mail domain:
-            address = user + "@" + os.environ["MAILNAME"]
+            address = user + "@" + os.environ["POSTFIX_MAILNAME"]
             if not address in mail_owners:
                 mail_owners[address] = set()
             mail_owners[address].add(user)
-            mail_owners[address].add(user + "@" + os.environ["MAILNAME"])
+            mail_owners[address].add(user + "@" + os.environ[
+                "POSTFIX_MAILNAME"])
 
         # Write file:
         f.write("# Automatically computed SMTP SASL senders:\n")
@@ -290,7 +296,8 @@ def setup():
     # Create user(s):
     uid = 1200
     with open("/tmp/smtp-newusers", "w") as f:
-        logins = [item.strip() for item in os.environ["SMTP_LOGIN"].split(",")]
+        logins = [item.strip() for item in os.environ[
+            "POSTFIX_SMTP_LOGIN"].split(",")]
         for login in logins:
             user = login.partition("=")[0]
             pw = login.partition("=")[2]
@@ -312,16 +319,27 @@ def setup():
         os.remove("/tmp/smtp-newusers")
 
     # Check if mailman is supposed to be used:
-    if "ENABLE_MAILMAN" in os.environ and (
-            os.environ["ENABLE_MAILMAN"].lower() == "true" or
-            os.environ["ENABLE_MAILMAN"].lower() == "on" or
-            os.environ["ENABLE_MAILMAN"].lower() == "yes" or
-            os.environ["ENABLE_MAILMAN"].lower() == "1"):
+    if "MAILMAN_ENABLE" in os.environ and (
+            os.environ["MAILMAN_ENABLE"].lower() == "true" or
+            os.environ["MAILMAN_ENABLE"].lower() == "on" or
+            os.environ["MAILMAN_ENABLE"].lower() == "yes" or
+            os.environ["MAILMAN_ENABLE"].lower() == "1"):
         print("[launch.py] mailman is ENABLED. Checking mailman presence...",
             flush=True)
         # Install mailman if missing:
         if not os.path.exists("/mailman-venv"):
             print("[launch.py] mailman missing. INSTALLING...", flush=True)
+
+            if not "MAILMAN_ROOT_PASSWORD" in os.environ:
+                print("ERROR: missing env setting: MAILMAN_ROOT_PASSWORD. " +
+                    "Please provide the setting and re-create the docker " +
+                    "container.", file=sys.stderr)
+                sys.exit(1)
+            if not "MAILMAN_ROOT_EMAIL" in os.environ:
+                print("ERROR: missing env setting: MAILMAN_ROOT_EMAIL. " +
+                    "Please provide the setting and re-create the docker " +
+                    "container.", file=sys.stderr)
+                sys.exit(1)
 
             # Find python we want to use for mailman:
             python3_version = "python3"
@@ -332,22 +350,47 @@ def setup():
             # Generate venv for use with mailman:
             print("[launch.py] Generating mailman venv using " +
                 python3_version + "...", flush=True)
+            #subprocess.check_output(["bash", "-c",
+            #    "source /root/.bashrc; " + python3_version + " -m " +
+            #    "venv /mailman-venv"])  # run as bash for $PATH use
             subprocess.check_output(["bash", "-c",
-                "source /root/.bashrc; " + python3_version + " -m " +
-                "venv /mailman-venv"])  # run as bash for $PATH use
+                "source /root/.bashrc; " +
+                "virtualenv /mailman-venv"])  # run as bash for $PATH use 
 
             # Install mailman:
             script = textwrap.dedent("""\
             #!/bin/bash
 
             source /mailman-venv/bin/activate || { echo "Failed to activate mailman venv"; exit 1; }
-            cd /mailman-venv/ || { echo "Failed to enter /mailman-venv"; exit 1; }
+
+            mkdir /opt/mailman
+            cd /opt/mailman
+            git clone https://gitlab.com/mailman/mailman-bundler.git
+            cd mailman-bundler
+            #pip install zc.buildout
+            buildout
+            ./bin/mailman-post-update
+            /posterius-createsuperuser.py """ +\
+            "root " + os.environ ["MAILMAN_ROOT_PASSWORD"] + " " +\
+            os.environ ["MAILMAN_ROOT_EMAIL"] +\
+            """
+            ./bin/mailman-web-django-admin createsuperuser
+
+            # OLD:            
+
             #bzr branch lp:mailman
-            pip install mailman
-            pip install postorius
-            #cd ./mailman/
-            #echo "Executing setup.py with python binary `whereis $python_bin`..."
+            #echo "Executing setup.py with python binary `whereis python`..."
+            #cd mailman
             #python setup.py install
+
+            #mkdir -p /postorius/
+            #cd /postorius/ || { echo "Failed to enter /postorius"; exit 1; }
+            #bzr branch lp:~mailman-coders/postorius/postorius
+            
+            #bzr branch lp:~mailman-coders/postorius/postorius_standalone
+            #cd postorius_standalone
+            #pip install django
+            #python manage.py syncdb
             """)
             with open("/tmp/mailman-install", "w") as f:
                 f.write(script)
@@ -416,6 +459,30 @@ subprocess.check_output(["postmap",
     "/etc/postfix/controlled_envelope_senders"])
 os.system("postfix start")
 check_exit()
+
+if "MAILMAN_ENABLE" in os.environ and (
+        os.environ["MAILMAN_ENABLE"].lower() == "true" or
+        os.environ["MAILMAN_ENABLE"].lower() == "on" or
+        os.environ["MAILMAN_ENABLE"].lower() == "yes" or
+        os.environ["MAILMAN_ENABLE"].lower() == "1"
+        ):
+    # Start mailman & posterius:
+    print ("[launch.py] Launching mailman & posterious...",
+        flush=True)
+    # Install mailman:
+    script = textwrap.dedent("""\
+    #!/bin/bash
+
+    source /mailman-venv/bin/activate || { echo "Failed to activate mailman venv"; exit 1; }
+    cd /opt/mailman/mailman-bundler/ || { echo "Failed to enter /mailman-venv"; exit 1; }
+    ./bin/mailman start
+    sleep 2
+    ./bin/mailman-web-django-admin runserver 0.0.0.0:8000
+    """)
+    with open("/tmp/mailman-launch", "w") as f:
+        f.write(script)
+    result = subprocess.call(["bash", "/tmp/mailman-launch"],
+        stderr=subprocess.STDOUT)
 
 # Announce launch completion:
 print ("[launch.py] Done. Everything should be running now.",

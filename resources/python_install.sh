@@ -14,6 +14,23 @@ fi
 
 echo "[MAILMAN PYTHON INSTALL]: installing exact python version $extra_mailman_python_version for use with mailman..."
 
+mkdir -p /mailman_python/
+cd /mailman_python/
+curl --tlsv1 -L https://www.python.org/ftp/python/$extra_mailman_python_exact_version/Python-$extra_mailman_python_exact_version.tgz -o python.tgz
+tar -xvzf ./python.tgz
+mv ./Python-$extra_mailman_python_exact_version ./Python/
+cd Python
+autoreconf -fi .
+./configure
+make
+make install
+
+exit 0
+
+# -----------------------------------------------------
+# OLD ARCHIVED BASED ON pyenv (NOT USED AT THIS POINT):
+# -----------------------------------------------------
+
 curl -L https://raw.githubusercontent.com/yyuu/pyenv-installer/master/bin/pyenv-installer | bash
 
 touch /root/.bashrc

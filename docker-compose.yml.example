@@ -6,7 +6,7 @@ mail:
   volumes:
 
   # Standard volumes for mail data persistance and launch script:
-  - ./livedata/var-spool-postfix/:/var/spool/postfix/:rw
+  - ./volumes/var-spool-postfix/:/var/spool/postfix/:rw
   - ./resources/launch.py:/launch.py:ro
 
   # Let's encrypt SSL certificates dir (optional):
