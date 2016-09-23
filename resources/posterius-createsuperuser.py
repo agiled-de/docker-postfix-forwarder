@@ -188,12 +188,15 @@ lines = iter(installer)
 print("Superuser creation: listening for output " +
     "interactively...", flush=True)
 
+encountered_lines = []
+
 class AbortThread(threading.Thread):
     def __init__(self):
         super().__init__()
         self.terminated = False
 
     def run(self):
+        global encountered_lines
         total_s = 1
         while True:
             total_s += 1
@@ -201,7 +204,8 @@ class AbortThread(threading.Thread):
             if self.terminated:
                 return
             if total_s >= 20:
-                print("ERROR: timeout for admin user creation.",
+                print("ERROR: timeout for admin user creation. " +
+                    "Total lines are: " + str(encountered_lines),
                     file=sys.stderr, flush=True)
                 os._exit(1)
 abrt_t = AbortThread()
@@ -209,11 +213,13 @@ abrt_t.start()
 
 while True:
     line = next(lines)
+    encountered_lines.append(line)
     if line.find("Username") >= 0:
         break
 installer.write(args.user + "\n")
 while True:
     line = next(lines)
+    encountered_lines.append(line)
     if line.find("username is already taken") >= 0:
         print("NOTHING TO DO, superuser already exists.",
             flush=True)
@@ -224,11 +230,13 @@ while True:
 installer.write(args.email + "\n")
 while True:
     line = next(lines)
+    encountered_lines.append(line)
     if line.find("Password") >= 0:
         break
 installer.write(args.password + "\n")
 while True:
     line = next(lines)
+    encountered_lines.append(line)
     if line.find("Password (again)") >= 0:
         break
 installer.write(args.password + "\n")
