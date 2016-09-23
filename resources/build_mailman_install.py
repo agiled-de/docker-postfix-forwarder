@@ -15,12 +15,19 @@ if "extra_mailman_python_version" in os.environ:
 subprocess.check_output(["bash",
     "-c", "source /root/.bashrc; virtualenv /mailman-venv"])
 
-os.mkdir("/opt/mailman/")
+if not os.path.exists("/opt"):
+    os.mkdir("/opt")
+if not os.path.exists("/opt/mailman"):
+    os.mkdir("/opt/mailman/")
 subprocess.check_output(["git",
     "clone",
-    "https://gitlab.com/mailman/mailman-bundler.git"])
+    "https://gitlab.com/mailman/mailman-bundler.git"],
+    cwd="/opt/mailman/")
 os.chdir("/opt/mailman/mailman-bundler/")
 subprocess.check_output(["buildout"])
+subprocess.check_output([
+    "./bin/mailman-post-update"],
+    cwd="/opt/mailman/mailman-bundler/")
 
 shutil.copytree("/opt/mailman/mailman-bundler/var/",
     "/opt/mailman/mailman-bundler-var-default")
