@@ -365,7 +365,8 @@ def setup():
 
             mkdir /opt/mailman
             cd /opt/mailman
-            git clone https://gitlab.com/mailman/mailman-bundler.git
+            git clone https://gitlab.com/mailman/mailman-bundler.git /opt/mailman/mailman-bundler-git/
+            rsync -avr --exclude 'var' ./mailman-bundler-git/ ./mailman-bundler/
             cd mailman-bundler
             #pip install zc.buildout
             buildout
