@@ -180,9 +180,32 @@ if len(args.email) <= 0:
     sys.exit(1)
 
 os.chdir("/opt/mailman/mailman-bundler/")
+print("Superuser creation: launching mailman web admin...", flush=True)
 installer = InteractiveTerminalWrapper(
     [ "./bin/mailman-web-django-admin", "createsuperuser" ])
 lines = iter(installer)
+
+print("Superuser creation: listening for output " +
+    "interactively...", flush=True)
+
+class AbortThread(threading.Thread):
+    def __init__(self):
+        super().__init__()
+        self.terminated = False
+
+    def run(self):
+        total_s = 1
+        while True:
+            total_s += 1
+            time.sleep(1)
+            if self.terminated:
+                return
+            if total_s >= 20:
+                print("ERROR: timeout for admin user creation.",
+                    file=sys.stderr, flush=True)
+                os._exit(1)
+abrt_t = AbortThread()
+abrt_t.start()
 
 while True:
     line = next(lines)
@@ -191,6 +214,11 @@ while True:
 installer.write(args.user + "\n")
 while True:
     line = next(lines)
+    if line.find("username is already taken") >= 0:
+        print("NOTHING TO DO, superuser already exists.",
+            flush=True)
+        abrt_t.terminated = True
+        os._exit(0)
     if line.find("Email") >= 0:
         break
 installer.write(args.email + "\n")
@@ -204,5 +232,8 @@ while True:
     if line.find("Password (again)") >= 0:
         break
 installer.write(args.password + "\n")
+abrt_t.terminated = True
+time.sleep(10)
 print("DONE.")
+os._exit(0)
 

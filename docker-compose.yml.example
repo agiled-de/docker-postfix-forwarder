@@ -7,7 +7,9 @@ mail:
 
   # Standard volumes for mail data persistance and launch script:
   - ./volumes/var-spool-postfix/:/var/spool/postfix/:rw
+  - ./volumes/opt-mailman-mailman-bundler-var/:/opt/mailman/mailman-bundler/var/:rw 
   - ./resources/launch.py:/launch.py:ro
+  - ./resources/posterius-createsuperuser.py:/posterius-createsuperuser.py:ro
 
   # Let's encrypt SSL certificates dir (optional):
   #- ../letsencrypt/ssl/:/ssl-letsencrypt/:ro
@@ -15,25 +17,28 @@ mail:
   environment:
 
   # All e-mail hosts you want to receive e-mail for:
-  - EMAIL_HOSTS=mymaindomain.com,myotherdomain.co.uk
+  - POSTFIX_EMAIL_HOSTS=mymaindomain.com,myotherdomain.co.uk
 
   # The main e-mail domain used for sending:
-  - MAILNAME=mymaindomain.com
+  - POSTFIX_MAILNAME=mymaindomain.com
 
   # Whether to enforce TLS when receiving e-mails from other servers:
-  - ENFORCE_TLS=no
+  - POSTFIX_ENFORCE_TLS=no
 
   # Folder with let's encrypt SSL certs to be used for the TLS (optional):
-  #- CERT_DIR=/ssl-letsencrypt/mymaindomain.com/
+  #- POSTFIX_CERT_DIR=/ssl-letsencrypt/mymaindomain.com/
 
   # List of e-mail accounts and where they are to be forwarded:
-  - MAIL_FORWARDS=contact@mymaindomain.com=mypersonalemail@external-provider.example.com, contact@mymaindomain2.com=myemail2@other-provider.example.com
+  - POSTFIX_MAIL_FORWARDS=contact@mymaindomain.com=mypersonalemail@external-provider.example.com, contact@mymaindomain2.com=myemail2@other-provider.example.com
 
   # To which account to send all non-existing catch-all emails:
-  - CATCH_ALL_TARGET_USER=contact
+  - POSTFIX_CATCH_ALL_TARGET_USER=contact
 
   # SMTP LOGIN for all users (generated through MAIL_FORWARD list) for sending mail:
-  - SMTP_LOGIN=contact=soMeRanDoMpAsSwoRd
+  - POSTFIX_SMTP_LOGIN=contact=soMeRanDoMpAsSwoRd
+
+  # WHETHER MAILMAN SHOULD BE INSTALLED & USED:
+  - MAILMAN_ENABLED=false
 
   ports:
   - "587:587"
