@@ -20,10 +20,9 @@ curl --tlsv1 -L https://www.python.org/ftp/python/$extra_mailman_python_exact_ve
 tar -xvzf ./python.tgz
 mv ./Python-$extra_mailman_python_exact_version ./Python/
 cd Python
-autoreconf -fi .
-./configure
-make
-make install
+./configure || { echo "Configuring Python during install failed."; exit 1; }
+make || { echo "Make for Python failed."; exit 1; }
+make install || { echo "Make install for Python failed."; exit 1; }
 
 exit 0
 
