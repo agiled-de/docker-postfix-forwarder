@@ -203,7 +203,7 @@ class AbortThread(threading.Thread):
             time.sleep(1)
             if self.terminated:
                 return
-            if total_s >= 20:
+            if total_s >= 30:
                 print("ERROR: timeout for admin user creation. " +
                     "Total lines are: " + str(encountered_lines),
                     file=sys.stderr, flush=True)
@@ -237,11 +237,11 @@ installer.write(args.password + "\n")
 while True:
     line = next(lines)
     encountered_lines.append(line)
-    if line.find("Password (again)") >= 0:
+    if line.find("Password") >= 0:
         break
 installer.write(args.password + "\n")
 abrt_t.terminated = True
-time.sleep(10)
+time.sleep(5)
 print("DONE.")
 os._exit(0)
 

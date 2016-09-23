@@ -28,8 +28,10 @@ RUN pip install zc.buildout
 RUN apt-get install -y curl
 RUN pip3 install tox
 RUN apt-get install -y libssl-dev libbz2-dev libreadline-dev libsqlite3-dev
-ADD ./resources/python_install.sh /tmp/python_install.sh
+ADD ./resources/build_python_install.sh /tmp/python_install.sh
 RUN bash /tmp/python_install.sh
+ADD ./resources/build_mailman_install.py /tmp/mailman_install.py
+RUN python3 /tmp/mailman_install.py
 
 # SMTP:
 EXPOSE 25

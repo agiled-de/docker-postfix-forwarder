@@ -340,11 +340,11 @@ def setup():
             os.environ["MAILMAN_ENABLE"].lower() == "on" or
             os.environ["MAILMAN_ENABLE"].lower() == "yes" or
             os.environ["MAILMAN_ENABLE"].lower() == "1"):
-        print("[launch.py] mailman is ENABLED. Checking mailman presence...",
+        print("[launch.py] mailman is ENABLED. Checking mailman config presence...",
             flush=True)
         # Install mailman if missing:
-        if not os.path.exists("/mailman-venv"):
-            print("[launch.py] mailman missing. INSTALLING...", flush=True)
+        if not os.path.exists("/opt/mailman/mailman-bundler/var/data/postfix_lmtp"):
+            print("[launch.py] mailman config missing. INITIALIZING...", flush=True)
 
             if not "MAILMAN_ROOT_PASSWORD" in os.environ:
                 print("ERROR: missing env setting: MAILMAN_ROOT_PASSWORD. " +
@@ -363,17 +363,7 @@ def setup():
                 python3_version = "python" + os.environ[
                     "extra_mailman_python_version"]
 
-            # Generate venv for use with mailman:
-            print("[launch.py] Generating mailman venv using " +
-                python3_version + "...", flush=True)
-            #subprocess.check_output(["bash", "-c",
-            #    "source /root/.bashrc; " + python3_version + " -m " +
-            #    "venv /mailman-venv"])  # run as bash for $PATH use
-            subprocess.check_output(["bash", "-c",
-                "source /root/.bashrc; " +
-                "virtualenv /mailman-venv"])  # run as bash for $PATH use 
-
-            # Install mailman:
+            # Configure mailman:
             script = textwrap.dedent("""\
             #!/bin/bash
 
@@ -381,10 +371,9 @@ def setup():
 
             mkdir -p /opt/mailman
             cd /opt/mailman
-            git clone https://gitlab.com/mailman/mailman-bundler.git /opt/mailman/mailman-bundler-git/
-            rsync -avr --exclude 'var' ./mailman-bundler-git/ ./mailman-bundler/
+            rsync -avr /opt/mailman/mailman-bundler-var-default/ /opt/mailman/mailman-bundler/var/
             cd mailman-bundler
-            buildout || { echo "[launch.py] ERROR: buildout for mailman failed."; exit 1; }
+            echo "[launch.py] Running post-update script..."
             ./bin/mailman-post-update
             echo "[launch.py] will create hyperkitty superuser now..."
             /posterius-createsuperuser.py """ +\
@@ -402,6 +391,10 @@ def setup():
                 print("[launch.py] mailman install FAILURE. ABORTING...",
                     file=sys.stderr, flush=True)
                 sys.exit(1)
+        print("[launch.py] Running mailman post-update script again " +
+            "to be sure...", flush=True)
+        subprocess.check_output(["./bin/mailman-post-update"],
+            cwd="/opt/mailman/mailman-bundler/")
 
     print ("[launch.py] Setup complete.",
         flush=True)
