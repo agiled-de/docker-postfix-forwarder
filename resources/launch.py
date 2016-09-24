@@ -450,6 +450,17 @@ if "MAILMAN_ENABLE" in os.environ and (
     # Start mailman & posterius:
     print ("[launch.py] Launching mailman & hyperkitty...",
         flush=True)
+
+    # Make sure hyperkitty uses dj-static:
+    contents = None
+    with open("/opt/mailman/mailman-bundler/mailman_web/wsgi.py", "r") as f:
+        contents = f.read()
+    contents = contents.replace("application = get_wsgi_application()",
+        "from dj_static import Cling\n" +
+        "application = Cling(get_wsgi_application())")
+    with open("/opt/mailman/mailman-bundler/mailman_web/wsgi.py", "w") as f:
+        f.write(contents)
+
     # Launch mailman:
     script = textwrap.dedent("""\
     #!/bin/bash
@@ -459,7 +470,7 @@ if "MAILMAN_ENABLE" in os.environ and (
     rm -f /opt/mailman/mailman-bundler/var/locks/master.lck
     ./bin/mailman start
     sleep 2
-    ./bin/mailman-web-django-admin runserver 0.0.0.0:8000
+    ./bin/gunicorn --bind 0.0.0.0:8000 mailman_web.wsgi:application
     """)
     with open("/tmp/mailman-launch", "w") as f:
         f.write(script)

@@ -3,6 +3,7 @@
 import os
 import shutil
 import subprocess
+import sys
 import time
 
 # Install mailman as far as possible without /var/ volume to speed up
@@ -29,6 +30,38 @@ result = subprocess.call(["buildout"],
     stderr=subprocess.STDOUT)
 if result != 0:
     sys.exit(1)
+result = subprocess.call(["buildout", "install",
+    "gunicorn"],
+    stderr=subprocess.STDOUT)
+if result != 0:
+    sys.exit(1)
+
+# Install dj-static system-wide
+result = subprocess.call(["pip3",
+    "install", "dj-static"],
+    stderr=subprocess.STDOUT)
+if result != 0:
+    sys.exit(1)
+result = subprocess.call(["pip",
+    "install", "dj-static"],
+    stderr=subprocess.STDOUT)
+if result != 0:
+    sys.exit(1)
+
+# Install dj-static in virtualenv of mailman:
+def mailman_venv():
+    for f in os.listdir("/opt/mailman/mailman-bundler"):
+        if f.startswith("venv-"):
+            return "/opt/mailman/mailman-bundler/" + f
+    raise RuntimeError("failed to find venv of mailman")
+result = subprocess.call(["bash",
+    "-c", "source /root/.bashrc; " +
+    "source " + mailman_venv() + "/bin/activate; " +
+    "pip install dj-static"],
+    stderr=subprocess.STDOUT)
+if result != 0:
+    sys.exit(1)
+# RUn mailman post-update:
 subprocess.check_output([
     "./bin/mailman-post-update"],
     cwd="/opt/mailman/mailman-bundler/")
@@ -46,7 +79,7 @@ if result != 0:
 time.sleep(5)
 print("Launching hyperkitty...", flush=True)
 p = subprocess.Popen(["./bin/mailman-web-django-admin",
-    "runserver", "0.0.0.0:8000"],
+    "runserver", "127.0.0.1:8000"],
     cwd="/opt/mailman/mailman-bundler/")
 time.sleep(10)
 
