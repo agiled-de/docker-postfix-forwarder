@@ -5,19 +5,21 @@
 whatsoever. Apparently this note is necessary for some legal people at
 docker, don't blame me.
 
-This is a simple SMTP server container which simply handles your choice of
-domains, and then forwards the received e-mail to your choice of targets at
-existing e-mail providers.
+This is a simple SMTP server for handling:
+- E-mail for your website domains and projects
+- (Optional) Mailing lists for your websites and projects
 
-Features:
-- Easy setup of multiple domains, accounts and mail forwarding (this container
-  is for forwarding on your custom domains only, it doesn't do IMAP!)
-- Optional catch-all for non-existing target accounts where mail is sent to
-- Optional TLS enforcement when receiving e-mails from other servers
-- Simple setup for SMTP accounts to send e-mail through this server with
-  a password
-- (Optional) support for let's encrypt certificates to be used for the SMTP TLS
-  to have properly signed certificates
+Detailed features:
+- Easy setup of multiple domains, accounts and mail forwarding
+- Catch-all option for e-mail sent to typo'ed accounts
+- TLS enforcement option if you like some additional security
+- Simple setup of SMTP accounts with passwords for sending e-mail
+- (Optional) support for let's encrypt certificates for the SMTP TLS
+- (Optional) mailing lists based on mailman 3 with hyperkitty web frontend
+
+What it DOESN'T do:
+- IMAP - it is supposed to be paired with your existing personal mailbox
+- DKIM - you can pair it with SPF & DNSSEC just fine, use PGP to be super safe
 
 This container is the perfect companion for a well-configured, simple e-mail
 setup to be able to send/receive from custom domains, while leaving the IMAP
