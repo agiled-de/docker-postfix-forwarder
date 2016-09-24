@@ -205,15 +205,15 @@ def setup():
             os.environ["MAILMAN_ENABLE"].lower() == "on" or
             os.environ["MAILMAN_ENABLE"].lower() == "yes" or
             os.environ["MAILMAN_ENABLE"].lower() == "1"):
-        append_to_file("/etc/postfix/main.cf",
+        append_to_file("/etc/postfix/main.cf", textwrap.dedent(
             """
             transport_maps =
-                hash:/path-to-mailman/var/data/postfix_lmtp
+                hash:/opt/mailman/mailman-bundler/var/data/postfix_lmtp
             local_recipient_maps =
-                hash:/path-to-mailman/var/data/postfix_lmtp
+                hash:/opt/mailman/mailman-bundler/var/data/postfix_lmtp
             relay_domains =
-                hash:/path-to-mailman/var/data/postfix_domains
-            """)
+                hash:/opt/mailman/mailman-bundler/var/data/postfix_domains
+            """))
 
     # Write /etc/postfix/virtual with virtual domain redirects / forwards:
     with open("/etc/postfix/virtual", "w") as f:
