@@ -450,12 +450,13 @@ if "MAILMAN_ENABLE" in os.environ and (
     # Start mailman & posterius:
     print ("[launch.py] Launching mailman & hyperkitty...",
         flush=True)
-    # Install mailman:
+    # Launch mailman:
     script = textwrap.dedent("""\
     #!/bin/bash
 
     source /mailman-venv/bin/activate || { echo "Failed to activate mailman venv"; exit 1; }
     cd /opt/mailman/mailman-bundler/ || { echo "Failed to enter /mailman-venv"; exit 1; }
+    rm -f /opt/mailman/mailman-bundler/var/locks/master.lck
     ./bin/mailman start
     sleep 2
     ./bin/mailman-web-django-admin runserver 0.0.0.0:8000
