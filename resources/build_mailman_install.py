@@ -34,15 +34,24 @@ subprocess.check_output([
     cwd="/opt/mailman/mailman-bundler/")
 
 # Start mailman to generate config:
-subprocess.check_output(["./bin/mailman", "start"],
-    cwd="/opt/mailman/mailman-bundler/")
+print("Launching mailman...", flush=True)
+os.chdir("/opt/mailman/mailman-bundler/")
+assert(os.path.exists("./bin/mailman"))
+result = subprocess.call(["bash",
+    "-c", "./bin/mailman start"],
+    cwd="/opt/mailman/mailman-bundler/",
+    shell=True, stderr=subprocess.STDOUT)
+if result != 0:
+    sys.exit(1)
 time.sleep(5)
+print("Launching hyperkitty...", flush=True)
 p = subprocess.Popen(["./bin/mailman-web-django-admin",
     "runserver", "0.0.0.0:8000"],
     cwd="/opt/mailman/mailman-bundler/")
 time.sleep(10)
 
 # Terminate mailman again:
+print("Terminating hyperkitty...", flush=True)
 try:
     subprocess.call(["kill", str(p.pid)])
 except Exception as e:
@@ -52,9 +61,12 @@ try:
     p.kill()
 except Exception as e:
     pass
-subprocess.call(["./bin/mailman", "stop"])
+print("Termating mailman...", flush=True)
+subprocess.call(["./bin/mailman", "stop"], timeout=15)
 time.sleep(3)
 
 shutil.copytree("/opt/mailman/mailman-bundler/var/",
     "/opt/mailman/mailman-bundler-var-default")
+os._exit(0)
+
 

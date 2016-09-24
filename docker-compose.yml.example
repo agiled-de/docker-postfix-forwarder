@@ -41,6 +41,7 @@ mail:
   - MAILMAN_ENABLED=false
 
   ports:
-  - "587:587"
-  - "25:25"
+  - "587:587"    # SMTP server (postfix) / SMTP
+  - "25:25"      # SMTP server (postfix) / SMTP
+  - "8000:8000"  # Mailman interface (Hyperkitty) / HTTP
 

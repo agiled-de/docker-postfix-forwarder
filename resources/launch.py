@@ -462,8 +462,9 @@ if "MAILMAN_ENABLE" in os.environ and (
     """)
     with open("/tmp/mailman-launch", "w") as f:
         f.write(script)
-    result = subprocess.call(["bash", "/tmp/mailman-launch"],
+    mailman_p = subprocess.Popen(["bash", "/tmp/mailman-launch"],
         stderr=subprocess.STDOUT)
+    time.sleep(10)
 
 # Start postfix:
 print ("[launch.py] Launching postfix...",
