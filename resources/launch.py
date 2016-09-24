@@ -471,8 +471,9 @@ if "MAILMAN_ENABLE" in os.environ and (
     rm -f /opt/mailman/mailman-bundler/var/locks/master.lck
     ./bin/mailman start
     sleep 2
-    ./bin/gunicorn --bind 0.0.0.0:8000 mailman_web.wsgi:application
+    ./bin/gunicorn --bind 0.0.0.0:8000 mailman_web.wsgi:application &
     sleep 15
+    echo "[launch.py] Re-creating superuser to make sure it exists..."
     /posterius-createsuperuser.py """ +\
     "root " + os.environ ["MAILMAN_ROOT_PASSWORD"] + " " +\
     os.environ ["MAILMAN_ROOT_EMAIL"] +\
