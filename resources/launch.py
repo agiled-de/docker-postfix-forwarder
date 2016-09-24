@@ -255,6 +255,7 @@ def setup():
         "smtpd_sasl_security_options = noanonymous\n" +
         "smtpd_sasl_local_domain = $myhostname\n" +
         "smtpd_sasl_path = smtpd\n" +
+        "smtpd_tls_security_level = may\n" +
         "smtp_tls_security_level = dane\n" +
         "smtp_dns_support_level = dnssec\n" +
         "smtpd_sender_login_maps = " +
@@ -471,6 +472,11 @@ if "MAILMAN_ENABLE" in os.environ and (
     ./bin/mailman start
     sleep 2
     ./bin/gunicorn --bind 0.0.0.0:8000 mailman_web.wsgi:application
+    sleep 15
+    /posterius-createsuperuser.py """ +\
+    "root " + os.environ ["MAILMAN_ROOT_PASSWORD"] + " " +\
+    os.environ ["MAILMAN_ROOT_EMAIL"] +\
+    """ || { echo "[launch.py] ERROR: superuser creation failed."; exit 1; }
     """)
     with open("/tmp/mailman-launch", "w") as f:
         f.write(script)

@@ -1,9 +1,11 @@
 #!/usr/bin/python3
 
+import pwgen
 import os
 import shutil
 import subprocess
 import sys
+import textwrap
 import time
 
 # Install mailman as far as possible without /var/ volume to speed up
@@ -17,6 +19,7 @@ if "extra_mailman_python_version" in os.environ:
 subprocess.check_output(["bash",
     "-c", "source /root/.bashrc; virtualenv /mailman-venv"])
 
+# Create folders and get source code:
 if not os.path.exists("/opt"):
     os.mkdir("/opt")
 if not os.path.exists("/opt/mailman"):
@@ -26,6 +29,85 @@ subprocess.check_output(["git",
     "https://gitlab.com/mailman/mailman-bundler.git"],
     cwd="/opt/mailman/")
 os.chdir("/opt/mailman/mailman-bundler/")
+
+# Set buildout.cfg to production mode:
+contents = None
+with open("/opt/mailman/mailman-bundler/buildout.cfg", "r") as f:
+    contents = f.read()
+contents_lines = contents.replace("\r\n", "\n").split("\n")
+new_contents = ""
+for line in contents_lines:
+    if line.startswith("deployment ="):
+        new_contents += "\ndeployment = production"
+    else:
+        new_contents += "\n" + line
+with open("/opt/mailman/mailman-bundler/buildout.cfg", "w") as f:
+    f.write(new_contents)
+
+# Alter secret key, ALLOWED_HOSTS, USE_INTERNAL_AUTH and
+# USE_SSL for production:
+contents = None
+with open("/opt/mailman/mailman-bundler/mailman_web/production.py",
+        "r") as f:
+    contents = f.read()
+contents_lines = contents.replace("\r\n", "\n").split("\n")
+new_contents = ""
+for line in contents_lines:
+    if line.startswith("SECRET_KEY ="):
+        new_contents += "\nSECRET_KEY = '" + pwgen.pwgen(
+            pw_length=30) + "'"
+    elif line.startswith("ALLOWED_HOSTS ="):
+        new_contents += "\nALLOWED_HOSTS = [\"*\"]"
+    elif line.startswith("USE_INTERNAL_AUTH ="):
+        new_contents += "\nUSE_INTERNAL_AUTH = True"
+    else:
+        new_contents += "\n" + line
+new_contents += "\nUSE_SSL = False"
+with open("/opt/mailman/mailman-bundler/mailman_web/production.py",
+        "w") as f:
+    f.write(new_contents)
+
+# Change production config to use sqlite3:
+contents = None
+with open("/opt/mailman/mailman-bundler/mailman_web/production.py",
+        "r") as f:
+    contents = f.read()
+contents_lines = contents.replace("\r\n", "\n").split("\n")
+new_contents = ""
+skip_until_block_end = False
+saw_bracket_close = False
+for line in contents_lines:
+    if line.startswith("DATABASES ="):
+        new_contents += """
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(VAR_DIR, 'mailman-web', 'mailman-web.sqlite'),
+    }
+}
+        """
+        skip_until_block_end = True
+        saw_bracket_close = False
+    elif skip_until_block_end and line.strip() == "}":
+        saw_bracket_close = True
+    elif skip_until_block_end and line.strip() != "}" and saw_bracket_close:
+        skip_until_block_end = False
+        new_contents += "\n" + line
+    elif not skip_until_block_end:
+        new_contents += "\n" + line
+with open("/opt/mailman/mailman-bundler/mailman_web/production.py",
+        "w") as f:
+    f.write(new_contents)
+
+# Create folder for logging:
+if not os.path.exists("/var"):
+    os.mkdir("/var")
+if not os.path.exists("/var/log"):
+    os.mkdir("/var/log")
+if not os.path.exists("/var/log/mailman-web"):
+    os.mkdir("/var/log/mailman-web/")
+
+# Run the buildout process, including the gunicorn install:
 result = subprocess.call(["buildout"],
     stderr=subprocess.STDOUT)
 if result != 0:
@@ -36,19 +118,19 @@ result = subprocess.call(["buildout", "install",
 if result != 0:
     sys.exit(1)
 
-# Install dj-static system-wide
+# Install dj-static, psycopg2 system-wide
 result = subprocess.call(["pip3",
-    "install", "dj-static"],
+    "install", "dj-static", "psycopg2"],
     stderr=subprocess.STDOUT)
 if result != 0:
     sys.exit(1)
 result = subprocess.call(["pip",
-    "install", "dj-static"],
+    "install", "dj-static", "psycopg2"],
     stderr=subprocess.STDOUT)
 if result != 0:
     sys.exit(1)
 
-# Install dj-static in virtualenv of mailman:
+# Install dj-static, psycopg2 in virtualenv of mailman:
 def mailman_venv():
     for f in os.listdir("/opt/mailman/mailman-bundler"):
         if f.startswith("venv-"):
@@ -57,11 +139,11 @@ def mailman_venv():
 result = subprocess.call(["bash",
     "-c", "source /root/.bashrc; " +
     "source " + mailman_venv() + "/bin/activate; " +
-    "pip install dj-static"],
+    "pip install dj-static psycopg2"],
     stderr=subprocess.STDOUT)
 if result != 0:
     sys.exit(1)
-# RUn mailman post-update:
+# Run mailman post-update:
 subprocess.check_output([
     "./bin/mailman-post-update"],
     cwd="/opt/mailman/mailman-bundler/")

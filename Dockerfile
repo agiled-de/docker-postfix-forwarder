@@ -21,8 +21,12 @@ RUN apt-get install -y ruby-sass
 
 # Python 3 basics, tox & buildout:
 RUN apt-get install -y bash python3 python3-venv python3-pip python-pip python-virtualenv
-RUN pip3 install tox pyyaml
+RUN pip3 install tox pyyaml pwgen
+RUN pip install pwgen
 RUN pip install zc.buildout
+
+# Postgres 2 libraries for hyperkitty:
+RUN apt-get install -y libpq-dev
 
 # Provide a way to install multiple Python versions:
 RUN apt-get install -y curl
@@ -30,6 +34,7 @@ RUN pip3 install tox
 RUN apt-get install -y libssl-dev libbz2-dev libreadline-dev libsqlite3-dev
 ADD ./resources/build_python_install.sh /tmp/python_install.sh
 RUN bash /tmp/python_install.sh
+RUN pip3 install pwgen
 ADD ./resources/build_mailman_install.py /tmp/mailman_install.py
 RUN python3 /tmp/mailman_install.py
 

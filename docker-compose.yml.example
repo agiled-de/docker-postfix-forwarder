@@ -22,9 +22,6 @@ mail:
   # The main e-mail domain used for sending:
   - POSTFIX_MAILNAME=mymaindomain.com
 
-  # Whether to enforce TLS when receiving e-mails from other servers:
-  - POSTFIX_ENFORCE_TLS=no
-
   # Folder with let's encrypt SSL certs to be used for the TLS (optional):
   #- POSTFIX_CERT_DIR=/ssl-letsencrypt/mymaindomain.com/
 

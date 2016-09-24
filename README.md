@@ -12,7 +12,6 @@ This is a simple SMTP server for handling:
 Detailed features:
 - Easy setup of multiple domains, accounts and mail forwarding
 - Catch-all option for e-mail sent to typo'ed accounts
-- TLS enforcement option if you like some additional security
 - Simple setup of SMTP accounts with passwords for sending e-mail
 - (Optional) support for let's encrypt certificates for the SMTP TLS
 - (Optional) mailing lists based on mailman 3 with hyperkitty web frontend
