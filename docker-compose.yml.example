@@ -1,44 +1,46 @@
 
+version: '2'
 
-mail:
-  build: .
+services:
+  mail:
+    build: .
+  
+    volumes:
+  
+    # Standard volumes for mail data persistance and launch script:
+    - ./volumes/var-spool-postfix/:/var/spool/postfix/:rw
+    - ./volumes/opt-mailman-mailman-bundler-var/:/opt/mailman/mailman-bundler/var/:rw 
+    - ./resources/launch.py:/launch.py:ro
+    - ./resources/posterius-createsuperuser.py:/posterius-createsuperuser.py:ro
+  
+    # Let's encrypt SSL certificates dir (optional):
+    #- ../letsencrypt/ssl/:/ssl-letsencrypt/:ro
 
-  volumes:
+    environment:
 
-  # Standard volumes for mail data persistance and launch script:
-  - ./volumes/var-spool-postfix/:/var/spool/postfix/:rw
-  - ./volumes/opt-mailman-mailman-bundler-var/:/opt/mailman/mailman-bundler/var/:rw 
-  - ./resources/launch.py:/launch.py:ro
-  - ./resources/posterius-createsuperuser.py:/posterius-createsuperuser.py:ro
+    # All e-mail hosts you want to receive e-mail for:
+    - POSTFIX_EMAIL_HOSTS=mymaindomain.com,myotherdomain.co.uk
 
-  # Let's encrypt SSL certificates dir (optional):
-  #- ../letsencrypt/ssl/:/ssl-letsencrypt/:ro
+    # The main e-mail domain used for sending:
+    - POSTFIX_MAILNAME=mymaindomain.com
 
-  environment:
+    # Folder with let's encrypt SSL certs to be used for the TLS (optional):
+    #- POSTFIX_CERT_DIR=/ssl-letsencrypt/mymaindomain.com/
 
-  # All e-mail hosts you want to receive e-mail for:
-  - POSTFIX_EMAIL_HOSTS=mymaindomain.com,myotherdomain.co.uk
+    # List of e-mail accounts and where they are to be forwarded:
+    - POSTFIX_MAIL_FORWARDS=contact@mymaindomain.com=mypersonalemail@external-provider.example.com, contact@mymaindomain2.com=myemail2@other-provider.example.com
 
-  # The main e-mail domain used for sending:
-  - POSTFIX_MAILNAME=mymaindomain.com
+    # To which account to send all non-existing catch-all emails:
+    - POSTFIX_CATCH_ALL_TARGET_USER=contact
 
-  # Folder with let's encrypt SSL certs to be used for the TLS (optional):
-  #- POSTFIX_CERT_DIR=/ssl-letsencrypt/mymaindomain.com/
+    # SMTP LOGIN for all users (generated through MAIL_FORWARD list) for sending mail:
+    - POSTFIX_SMTP_LOGIN=contact=soMeRanDoMpAsSwoRd
 
-  # List of e-mail accounts and where they are to be forwarded:
-  - POSTFIX_MAIL_FORWARDS=contact@mymaindomain.com=mypersonalemail@external-provider.example.com, contact@mymaindomain2.com=myemail2@other-provider.example.com
+    # WHETHER MAILMAN SHOULD BE INSTALLED & USED:
+    - MAILMAN_ENABLED=false
 
-  # To which account to send all non-existing catch-all emails:
-  - POSTFIX_CATCH_ALL_TARGET_USER=contact
-
-  # SMTP LOGIN for all users (generated through MAIL_FORWARD list) for sending mail:
-  - POSTFIX_SMTP_LOGIN=contact=soMeRanDoMpAsSwoRd
-
-  # WHETHER MAILMAN SHOULD BE INSTALLED & USED:
-  - MAILMAN_ENABLED=false
-
-  ports:
-  - "587:587"    # SMTP server (postfix) / SMTP
-  - "25:25"      # SMTP server (postfix) / SMTP
-  - "8000:8000"  # Mailman interface (Hyperkitty) / HTTP
+    ports:
+    - "587:587"    # SMTP server (postfix) / SMTP
+    - "25:25"      # SMTP server (postfix) / SMTP
+    - "8000:8000"  # Mailman interface (Hyperkitty) / HTTP
 
