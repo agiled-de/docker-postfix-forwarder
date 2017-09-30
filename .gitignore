@@ -2,6 +2,7 @@
 *.swp
 *.swo
 __pycache__
+/resources/mailman-core-build.txt
 /resources/mailman-web-build.txt
 /volumes/
 /docker-compose.yml

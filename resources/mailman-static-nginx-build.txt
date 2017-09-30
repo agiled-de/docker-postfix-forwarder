@@ -3,18 +3,21 @@ FROM nginx:latest
 
 ENV TINI_VERSION v0.16.1
 
-ADD ./mailman-static-nginx-conf.tmpl /etc/nginx/default.conf
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+ADD ./mailman-static-nginx-conf.tmpl /etc/nginx/conf.d/default.conf
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /sbin/tini
+RUN chmod +x /sbin/tini
 
 RUN echo "#!/bin/bash" > /startup.bash
 RUN echo "cp /conf-template-default.conf /etc/nginx/default.conf" >> /startup.bash
-RUN echo "if [ -z \"$$VIRTUAL_HOST\" ]; then" >> /startup.bash
+RUN echo "if [ -z \"\$VIRTUAL_HOST\" ]; then" >> /startup.bash
 RUN echo "    VIRTUAL_HOST=\"_\"" >> /startup.bash
 RUN echo "fi" >> /startup.bash
-RUN echo "sed -i '' 's/{{ HOSTNAME }}/$$VIRTUAL_HOST/' /etc/nginx/default.conf" >> /startup.bash
-RUN echo "exec nginx -g 'daemon off';" >> /startup.bash
+RUN echo "sed -i \"s/{{ HOSTNAME }}/\$VIRTUAL_HOST/\" /etc/nginx/conf.d/default.conf" >> /startup.bash
+RUN echo "exec nginx -g 'daemon off;'" >> /startup.bash
 
 ENTRYPOINT ["/sbin/tini", "--"]
 
-CMD ["bash", "/startup/bash"]
+EXPOSE 80
+
+CMD ["bash", "/startup.bash"]
 

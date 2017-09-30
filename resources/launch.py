@@ -170,7 +170,7 @@ def setup():
         if simplify(line).startswith("mydestination="):
             return "mydestination=" +\
                 "localhost.localdomain, localhost, " +\
-                ", ".join(all_domains())
+                ", ".join(actual_domains())
         return line
     filter_file("/etc/postfix/main.cf", main_cf_dest)
 
@@ -209,11 +209,11 @@ def setup():
             owner_reuqest_special = no
  
             transport_maps =
-                regexp:/opt/mailman/core/var/data/postfix_lmtp
+                regexp:/opt/mailman/var/data/postfix_lmtp
             local_recipient_maps =
-                regexp:/opt/mailman/core/var/data/postfix_lmtp
+                regexp:/opt/mailman/var/data/postfix_lmtp
             relay_domains =
-                regexp:/opt/mailman/core/var/data/postfix_domains
+                regexp:/opt/mailman/var/data/postfix_domains
             """))
         
 
@@ -347,7 +347,7 @@ def setup():
             "config presence...",
             flush=True)
         # Error if mailman config volume is missing:
-        if not os.path.exists("/opt/mailman/core/"):
+        if not os.path.exists("/opt/mailman/"):
             print("[launch.py] ERROR: mailman config missing. "
                 "Did you read docker-compose.yml.example and "
                 "add the required volumes? THIS ERROR IS FATAL.",
@@ -357,8 +357,21 @@ def setup():
         # Write correct mailman-extra.cfg for postfix:
         with open("/tmp/mailman-extra.cfg", "r") as f:
             mm_extra = f.read()
-        with open("/opt/mailman/core/mailman-extra.cfg", "w"):
+        with open("/opt/mailman/mailman-extra.cfg", "w") as f:
             f.write(mm_extra)
+
+        while not os.path.exists("/opt/mailman/var/data"):
+            print("[launch.py] ERROR: mailman config files missing. "
+                "Make sure /opt/mailman/ volume is set up "
+                "correctly. WILL RETRY IN 5 SECONDS...",
+                flush=True, file=sys.stderr)
+            time.sleep(5)
+        if not os.path.exists("/opt/mailman/var/data/postfix_domains"):
+            with open("/opt/mailman/var/data/postfix_domains", "w") as f:
+                pass
+        if not os.path.exists("/opt/mailman/var/data/postfix_lmtp"):
+            with open("/opt/mailman/var/data/postfix_lmtp", "w") as f:
+                pass
 
     print ("[launch.py] Setup complete.",
         flush=True)
