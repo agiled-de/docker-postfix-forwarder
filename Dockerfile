@@ -13,5 +13,10 @@ RUN apt-get install -y vim-common netcat
 EXPOSE 25
 EXPOSE 587
 
+# Add launch script:
+ADD ./resources/launch.py /launch.py
+RUN mkdir -p /tmp/
+ADD ./resources/mailman-extra.cfg /tmp/mailman-extra.cfg
+
 CMD python3 /launch.py
 

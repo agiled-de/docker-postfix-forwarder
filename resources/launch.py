@@ -28,13 +28,10 @@ def setup():
 
     print ("[launch.py] Adding postfix and sasl users...",
         flush=True)
-
     subprocess.check_output(["adduser", "postfix", "sasl"])
 
     print ("[launch.py] Calling dpkg-reconfigure for postfix...",
         flush=True)
-
-
     os.system("bash -c \"DEBIAN_FRONTEND=noninteractive " +\
         "dpkg-reconfigure postfix\"")
 
@@ -205,15 +202,20 @@ def setup():
             os.environ["MAILMAN_ENABLE"].lower() == "on" or
             os.environ["MAILMAN_ENABLE"].lower() == "yes" or
             os.environ["MAILMAN_ENABLE"].lower() == "1"):
+        config_set("recipient_delimiter", "+")
         append_to_file("/etc/postfix/main.cf", textwrap.dedent(
             """
+            unknown_local_recipient_reject_code = 550
+            owner_reuqest_special = no
+ 
             transport_maps =
-                hash:/opt/mailman/mailman-bundler/var/data/postfix_lmtp
+                regexp:/opt/mailman/core/var/data/postfix_lmtp
             local_recipient_maps =
-                hash:/opt/mailman/mailman-bundler/var/data/postfix_lmtp
+                regexp:/opt/mailman/core/var/data/postfix_lmtp
             relay_domains =
-                hash:/opt/mailman/mailman-bundler/var/data/postfix_domains
+                regexp:/opt/mailman/core/var/data/postfix_domains
             """))
+        
 
     # Write /etc/postfix/virtual with virtual domain redirects / forwards:
     with open("/etc/postfix/virtual", "w") as f:
@@ -341,61 +343,22 @@ def setup():
             os.environ["MAILMAN_ENABLE"].lower() == "on" or
             os.environ["MAILMAN_ENABLE"].lower() == "yes" or
             os.environ["MAILMAN_ENABLE"].lower() == "1"):
-        print("[launch.py] mailman is ENABLED. Checking mailman config presence...",
+        print("[launch.py] mailman is ENABLED. Checking mailman "
+            "config presence...",
             flush=True)
-        # Install mailman if missing:
-        if not os.path.exists("/opt/mailman/mailman-bundler/var/data/postfix_lmtp"):
-            print("[launch.py] mailman config missing. INITIALIZING...", flush=True)
+        # Error if mailman config volume is missing:
+        if not os.path.exists("/opt/mailman/core/"):
+            print("[launch.py] ERROR: mailman config missing. "
+                "Did you read docker-compose.yml.example and "
+                "add the required volumes? THIS ERROR IS FATAL.",
+                flush=True, file=sys.stderr)
+            sys.exit(1)
 
-            if not "MAILMAN_ROOT_PASSWORD" in os.environ:
-                print("ERROR: missing env setting: MAILMAN_ROOT_PASSWORD. " +
-                    "Please provide the setting and re-create the docker " +
-                    "container.", file=sys.stderr)
-                sys.exit(1)
-            if not "MAILMAN_ROOT_EMAIL" in os.environ:
-                print("ERROR: missing env setting: MAILMAN_ROOT_EMAIL. " +
-                    "Please provide the setting and re-create the docker " +
-                    "container.", file=sys.stderr)
-                sys.exit(1)
-
-            # Find python we want to use for mailman:
-            python3_version = "python3"
-            if "extra_mailman_python_version" in os.environ:
-                python3_version = "python" + os.environ[
-                    "extra_mailman_python_version"]
-
-            # Configure mailman:
-            script = textwrap.dedent("""\
-            #!/bin/bash
-
-            source /mailman-venv/bin/activate || { echo "Failed to activate mailman venv"; exit 1; }
-
-            mkdir -p /opt/mailman
-            cd /opt/mailman
-            rsync -avr /opt/mailman/mailman-bundler-var-default/ /opt/mailman/mailman-bundler/var/
-            cd mailman-bundler
-            echo "[launch.py] Running post-update script..."
-            ./bin/mailman-post-update
-            echo "[launch.py] will create hyperkitty superuser now..."
-            /posterius-createsuperuser.py """ +\
-            "root " + os.environ ["MAILMAN_ROOT_PASSWORD"] + " " +\
-            os.environ ["MAILMAN_ROOT_EMAIL"] +\
-            """ || { echo "[launch.py] ERROR: superuser creation failed."; exit 1; }
-            echo "[launch.py] hyperkitty superuser was created."
-
-            """)
-            with open("/tmp/mailman-install", "w") as f:
-                f.write(script)
-            result = subprocess.call(["bash", "/tmp/mailman-install"],
-                stderr=subprocess.STDOUT)
-            if result != 0:
-                print("[launch.py] mailman install FAILURE. ABORTING...",
-                    file=sys.stderr, flush=True)
-                sys.exit(1)
-        print("[launch.py] Running mailman post-update script again " +
-            "to be sure...", flush=True)
-        subprocess.check_output(["./bin/mailman-post-update"],
-            cwd="/opt/mailman/mailman-bundler/")
+        # Write correct mailman-extra.cfg for postfix:
+        with open("/tmp/mailman-extra.cfg", "r") as f:
+            mm_extra = f.read()
+        with open("/opt/mailman/core/mailman-extra.cfg", "w"):
+            f.write(mm_extra)
 
     print ("[launch.py] Setup complete.",
         flush=True)
@@ -440,50 +403,6 @@ print ("[launch.py] Launching saslauthd...",
 subprocess.check_output(["saslauthd", "-a", "shadow"])
 time.sleep(5)
 check_exit()
-
-# Start mailman:
-if "MAILMAN_ENABLE" in os.environ and (
-        os.environ["MAILMAN_ENABLE"].lower() == "true" or
-        os.environ["MAILMAN_ENABLE"].lower() == "on" or
-        os.environ["MAILMAN_ENABLE"].lower() == "yes" or
-        os.environ["MAILMAN_ENABLE"].lower() == "1"
-        ):
-    # Start mailman & posterius:
-    print ("[launch.py] Launching mailman & hyperkitty...",
-        flush=True)
-
-    # Make sure hyperkitty uses dj-static:
-    contents = None
-    with open("/opt/mailman/mailman-bundler/mailman_web/wsgi.py", "r") as f:
-        contents = f.read()
-    contents = contents.replace("application = get_wsgi_application()",
-        "from dj_static import Cling\n" +
-        "application = Cling(get_wsgi_application())")
-    with open("/opt/mailman/mailman-bundler/mailman_web/wsgi.py", "w") as f:
-        f.write(contents)
-
-    # Launch mailman:
-    script = textwrap.dedent("""\
-    #!/bin/bash
-
-    source /mailman-venv/bin/activate || { echo "Failed to activate mailman venv"; exit 1; }
-    cd /opt/mailman/mailman-bundler/ || { echo "Failed to enter /mailman-venv"; exit 1; }
-    rm -f /opt/mailman/mailman-bundler/var/locks/master.lck
-    ./bin/mailman start
-    sleep 2
-    ./bin/gunicorn --bind 0.0.0.0:8000 mailman_web.wsgi:application &
-    sleep 15
-    echo "[launch.py] Re-creating superuser to make sure it exists..."
-    /posterius-createsuperuser.py """ +\
-    "root " + os.environ ["MAILMAN_ROOT_PASSWORD"] + " " +\
-    os.environ ["MAILMAN_ROOT_EMAIL"] +\
-    """ || { echo "[launch.py] ERROR: superuser creation failed."; exit 1; }
-    """)
-    with open("/tmp/mailman-launch", "w") as f:
-        f.write(script)
-    mailman_p = subprocess.Popen(["bash", "/tmp/mailman-launch"],
-        stderr=subprocess.STDOUT)
-    time.sleep(10)
 
 # Start postfix:
 print ("[launch.py] Launching postfix...",

@@ -7,13 +7,11 @@ services:
   
     volumes:
   
-    # Standard volumes for mail data persistance and launch script:
+    # Standard volumes which are always required:
     - ./volumes/var-spool-postfix/:/var/spool/postfix/:rw
-    - ./volumes/opt-mailman-mailman-bundler-var/:/opt/mailman/mailman-bundler/var/:rw 
-    - ./resources/launch.py:/launch.py:ro
-    - ./resources/posterius-createsuperuser.py:/posterius-createsuperuser.py:ro
+    - ./volumes/opt-mailman-core/:/opt/mailman/core   
   
-    # Let's encrypt SSL certificates dir (optional):
+    # Optional: Let's encrypt SSL certificates dir:
     #- ../letsencrypt/ssl/:/ssl-letsencrypt/:ro
 
     environment:
@@ -36,11 +34,25 @@ services:
     # SMTP LOGIN for all users (generated through MAIL_FORWARD list) for sending mail:
     - POSTFIX_SMTP_LOGIN=contact=soMeRanDoMpAsSwoRd
 
-    # WHETHER MAILMAN SHOULD BE INSTALLED & USED:
+    # WHETHER MAILMAN SHOULD BE USED (requires adding maxking/docker-mailman
+    # containers below as from their standard docker-compose.yml, and changing
+    # the/opt/mailman/web volume to ./volumes/opt-mailman-core instead):
     - MAILMAN_ENABLED=false
 
     ports:
     - "587:587"    # SMTP server (postfix) / SMTP
     - "25:25"      # SMTP server (postfix) / SMTP
     - "8000:8000"  # Mailman interface (Hyperkitty) / HTTP
+
+# AN OPTIONAL STATIC FILE WEBSERVER (for use with maxking/docker-mailman)
+#  mailman-static:
+#    build:
+#      context: ./resources/
+#      dockerfile: ./resources/mailman-static-nginx-build.txt
+#    environment:
+#    - VIRTUAL_HOST=lists.example.com
+#    volumes:
+#    - ./resources/mailman-static-nginx-conf.tmpl:/conf-template-default.conf:ro
+#    - ./volumes/opt-mailman-web-data-static/:/opt/mailman-web-data/static:ro
+
 
